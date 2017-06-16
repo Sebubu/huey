@@ -3,3 +3,5 @@ __pycache__
 *.pyc
 docs/_build
 venv/
+huey.egg-info/
+huey.db
