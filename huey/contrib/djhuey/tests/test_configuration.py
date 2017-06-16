@@ -64,6 +64,7 @@ class MultiConfReaderTest(TestCase):
             }
         },
         'my-app2': {
+            'default': True,
             'backend': 'huey.backends.sqlite_backend',
             'connection': {'location': 'sqlite filename'},
                 'consumer': {
@@ -87,6 +88,34 @@ class MultiConfReaderTest(TestCase):
         reader = MultiConfReader(self.config)
         conf = reader['my-app']
         self.assertEqual(conf.name, 'my-app')
+
+    def test_default_config(self):
+        reader = MultiConfReader(self.config)
+        conf = reader.default_configuration
+        self.assertEqual(conf.name, 'my-app2')
+
+    def test_no_default_config(self):
+        config = {
+            'my-app': {
+                'backend': 'huey.backends.redis_backend',
+                'connection': {'host': 'localhost', 'port': 6378},
+                'consumer': {
+                    'workers': 4,
+                    'worker_type': 'process',
+                }
+            },
+            'my-app2': {
+                'backend': 'huey.backends.sqlite_backend',
+                'connection': {'location': 'sqlite filename'},
+                'consumer': {
+                    'workers': 4,
+                    'worker_type': 'process',
+                }
+            },
+        }
+        reader = MultiConfReader(config)
+        conf = reader.default_configuration
+        self.assertTrue(conf.name == 'my-app' or conf.name == 'my-app2')
 
 
 

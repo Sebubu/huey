@@ -5,12 +5,14 @@ import unittest
 
 from huey import tests
 
+
 def _requirements_installed():
     try:
         import django
         return True
     except Exception:
         return False
+
 
 def run_tests(*test_args):
     suite = unittest.TestLoader().loadTestsFromModule(tests)

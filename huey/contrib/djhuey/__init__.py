@@ -22,6 +22,28 @@ The following example uses Redis on localhost, and will run four worker
 processes:
 
 HUEY = {
+    'my-app': {
+        'default': True,
+        'backend': 'huey.backends.redis_backend',
+        'connection': {'host': 'localhost', 'port': 6379},
+            'consumer': {
+                'workers': 4,
+                'worker_type': 'process',
+        }
+    },
+    'my-app2': {
+        'backend': 'huey.backends.sqlite_backend',
+        'connection': {'location': 'sqlite filename'},
+            'consumer': {
+                'workers': 4,
+                'worker_type': 'process',
+        }
+    },
+}
+
+Additionally the old configuration variant is still usable:
+
+HUEY = {
     'name': 'my-app',
     'connection': {'host': 'localhost', 'port': 6379},
     'consumer': {
@@ -56,8 +78,7 @@ def config_error(msg):
     print('\n\n')
     print(msg)
     sys.exit(1)
-
-
+    
 HUEY = getattr(settings, 'HUEY', None)
 if HUEY is None:
     try:

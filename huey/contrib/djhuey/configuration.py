@@ -23,6 +23,7 @@ class MultiConfReader:
 
     HUEY = {
         'my-app': {
+            'default': True,
             'backend': 'huey.backends.redis_backend',
             'connection': {'host': 'localhost', 'port': 6379},
                 'consumer': {
@@ -39,6 +40,10 @@ class MultiConfReader:
             }
         },
     }
+
+    The MultiConfiguration adds a additional property: default.
+    It indicates the default queue if only the decorator @huey.task is used.
+    The default property can only be used once.
     """
 
     def __init__(self, huey_settings, handle_options={}):
@@ -62,9 +67,24 @@ class MultiConfReader:
                 return conf
         raise KeyError
 
+    def is_valid(self):
+        for key, value in self.huey_settings:
+            if not isinstance(value, {}):
+                return False
+        return True
+
     @property
     def configurations(self):
         return self._single_conf_readers
+
+    @property
+    def default_configuration(self):
+        for conf in self._single_conf_readers:
+            if 'default' in conf.huey_settings:
+                if conf.huey_settings['default']:
+                    return conf
+        return self._single_conf_readers[0]
+
 
 
 
@@ -144,6 +164,15 @@ class SingleConfReader:
                 return settings.DATABASES['default']['NAME']
             except KeyError:
                 return 'huey'
+
+    def is_valid(self):
+        for key, value in self.huey_settings:
+            if not isinstance(value, {}):
+                return True
+        return False
+
+    def __str__(self):
+        return str(self.huey_settings)
 
 
 
