@@ -47,18 +47,29 @@ class MultiConfReader:
     """
 
     def __init__(self, huey_settings, handle_options={}):
-        self.huey_settings = huey_settings
+        self.huey_settings = huey_settings.copy()
         self.handle_options = handle_options
         self._single_conf_readers = []
-
+        self._default_reader = None
         self._create_single_confs()
+
+    def is_default_config(self, configuration):
+        if 'default' in configuration:
+            if configuration['default']:
+                return True
+        return False
 
     def _create_single_confs(self):
         huey_config = self.huey_settings.copy()
 
         for name, config in huey_config.items():
             config['name'] = name
+            is_default = self.is_default_config(config)
+            if is_default:
+                del config['default']
             reader = SingleConfReader(config, self.handle_options)
+            if is_default:
+                    self._default_reader = reader
             self._single_conf_readers.append(reader)
 
     def __getitem__(self, item):
@@ -68,8 +79,8 @@ class MultiConfReader:
         raise KeyError
 
     def is_valid(self):
-        for key, value in self.huey_settings:
-            if not isinstance(value, {}):
+        for key, value in self.huey_settings.items():
+            if not isinstance(value, dict):
                 return False
         return True
 
@@ -79,10 +90,8 @@ class MultiConfReader:
 
     @property
     def default_configuration(self):
-        for conf in self._single_conf_readers:
-            if 'default' in conf.huey_settings:
-                if conf.huey_settings['default']:
-                    return conf
+        if self._default_reader is not None:
+            return self._default_reader
         return self._single_conf_readers[0]
 
 
@@ -111,7 +120,10 @@ class SingleConfReader:
 
     @property
     def name(self):
-        return self.huey_settings['name']
+        if 'name' in self.huey_settings:
+            return self.huey_settings['name']
+        else:
+            return ''
 
     @property
     def huey(self):
@@ -166,8 +178,8 @@ class SingleConfReader:
                 return 'huey'
 
     def is_valid(self):
-        for key, value in self.huey_settings:
-            if not isinstance(value, {}):
+        for key, value in self.huey_settings.items():
+            if not isinstance(value, dict):
                 return True
         return False
 

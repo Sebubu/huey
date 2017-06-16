@@ -4,8 +4,8 @@ import sys
 from django.conf import settings
 from django.db import connection
 
-from huey import RedisHuey
-
+from huey.contrib.djhuey.configuration import SingleConfReader, MultiConfReader
+from huey.contrib.djhuey.initialize import DjangoHuey
 
 configuration_message = """
 Configuring Huey for use with Django
@@ -63,47 +63,19 @@ HUEY = RedisHuey('my-app')
 """
 
 
-def default_queue_name():
-    try:
-        return settings.DATABASE_NAME
-    except AttributeError:
-        try:
-            return settings.DATABASES['default']['NAME']
-        except KeyError:
-            return 'huey'
+_huey_settings = getattr(settings, 'HUEY', None)
+
+_django_huey = DjangoHuey(_huey_settings)
+_django_huey.start()
+
+HUEY = _django_huey.huey
+HUEYS = _django_huey.hueys
+task = _django_huey.task
+periodic_task = _django_huey.periodic_task
 
 
-def config_error(msg):
-    print(configuration_message)
-    print('\n\n')
-    print(msg)
-    sys.exit(1)
-    
-HUEY = getattr(settings, 'HUEY', None)
-if HUEY is None:
-    try:
-        from huey import RedisHuey
-    except ImportError:
-        config_error('Error: Huey could not import the redis backend. '
-                     'Install `redis-py`.')
-    else:
-        HUEY = RedisHuey(default_queue_name())
 
-if isinstance(HUEY, dict):
-    huey_config = HUEY.copy()  # Operate on a copy.
-    name = huey_config.pop('name', default_queue_name())
-    conn_kwargs = huey_config.pop('connection', {})
-    try:
-        del huey_config['consumer']  # Don't need consumer opts here.
-    except KeyError:
-        pass
-    if 'always_eager' not in huey_config:
-        huey_config['always_eager'] = settings.DEBUG
-    huey_config.update(conn_kwargs)
-    HUEY = RedisHuey(name, **huey_config)
 
-task = HUEY.task
-periodic_task = HUEY.periodic_task
 
 
 def close_db(fn):
