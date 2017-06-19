@@ -299,10 +299,9 @@ You can even use huey to distribute your tasks to several queues which are proce
             raise Exception('Crap something went wrong')
 
 As soon as you have configured your queues, you can start workers for each queue:
+
 .. code-block:: console
 
     // Create worker for each queue.
-
     $ ./manage.py run_huey --queue first_queue
-
     $ ./manage.py run_huey --queue second_queue
