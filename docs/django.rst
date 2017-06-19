@@ -256,6 +256,9 @@ Alternatively, you can just assign a :py:class:`Huey` instance to the ``HUEY`` s
 
     HUEY = RedisHuey('my-app')
 
+
+Several queues
+^^^^^^^^^^^^^^^^^^^^^^
 You can even use huey to distribute your tasks to several queues which are processed independently.
 
 .. code-block:: python
@@ -299,5 +302,7 @@ As soon as you have configured your queues, you can start workers for each queue
 .. code-block:: console
 
     // Create worker for each queue.
+
     $ ./manage.py run_huey --queue first_queue
+
     $ ./manage.py run_huey --queue second_queue
