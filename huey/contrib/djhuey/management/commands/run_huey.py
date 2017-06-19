@@ -35,6 +35,7 @@ class Command(BaseCommand):
                 if 'type' in kwargs:
                     kwargs['type'] = self._type_map[kwargs['type']]
                 parser.add_argument(full, short, **kwargs)
+        parser.add_argument('-q', '--queue', type=str, help='Select the queue to listen on.')
 
     def autodiscover(self):
         """Use Django app registry to pull out potential apps with tasks.py module."""
@@ -50,6 +51,10 @@ class Command(BaseCommand):
                 imp.load_module(import_path, fp, path, description)
 
     def handle(self, *args, **options):
+        print(args)
+        print(options)
+        if 'queue' in options:
+            print(options['queue'])
         from huey.contrib.djhuey import HUEY
 
         consumer_options = {}
