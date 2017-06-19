@@ -3,7 +3,7 @@ from functools import wraps
 from django.conf import settings
 from django.db import connection
 
-from huey.contrib.djhuey.configuration import DjangoHuey
+from huey.contrib.djhuey.configuration import HueySettingsReader
 
 configuration_message = """
 Configuring Huey for use with Django
@@ -62,11 +62,11 @@ HUEY = RedisHuey('my-app')
 
 _huey_settings = getattr(settings, 'HUEY', None)
 
-_django_huey = DjangoHuey(_huey_settings)
+_django_huey = HueySettingsReader(_huey_settings)
 _django_huey.start()
 
 HUEY = _django_huey.huey
-HUEYS = _django_huey.hueys
+hueys = _django_huey.hueys
 task = _django_huey.task
 periodic_task = _django_huey.periodic_task
 
