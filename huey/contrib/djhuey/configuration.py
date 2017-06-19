@@ -86,19 +86,19 @@ class HueySettingsReader:
         self.hueys = {}
         self.huey = None
 
-    def task(self, name=None, **kwargs):
+    def task(self, name=None, *args, **kwargs):
         if name is None:
             huey = self.huey
         else:
             huey = self.hueys[name]
 
-        return huey.task(**kwargs)
+        return huey.task(*args,**kwargs)
 
-    def periodic_task(self, name=None, **kwargs):
+    def periodic_task(self, name=None, *args, **kwargs):
         huey = self.hueys[name]
 
         def decorator(func):
-            return huey.periodic_task(**kwargs)(func)
+            return huey.periodic_task(*args, **kwargs)(func)
 
         return decorator
 
