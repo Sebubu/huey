@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from huey.contrib.djhuey.initialize import DjangoHuey
+from huey.contrib.djhuey.configuration import DjangoHuey
 
 
 class DjangoHueyTest(TestCase):
@@ -71,7 +71,7 @@ class DjangoHueyTest(TestCase):
         config = {
             'my-app': {
                 'default': True,
-                #'backend': 'huey.backends.redis_backend',
+                'backend': 'huey.backends.redis_backend',
                 'always_eager': True,
                 'connection': {'host': 'localhost', 'port': 6379},
                 'consumer': {

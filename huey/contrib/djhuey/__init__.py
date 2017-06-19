@@ -1,11 +1,9 @@
 from functools import wraps
-import sys
 
 from django.conf import settings
 from django.db import connection
 
-from huey.contrib.djhuey.configuration import SingleConfReader, MultiConfReader
-from huey.contrib.djhuey.initialize import DjangoHuey
+from huey.contrib.djhuey.configuration import DjangoHuey
 
 configuration_message = """
 Configuring Huey for use with Django
@@ -62,7 +60,6 @@ from huey import RedisHuey
 HUEY = RedisHuey('my-app')
 """
 
-
 _huey_settings = getattr(settings, 'HUEY', None)
 
 _django_huey = DjangoHuey(_huey_settings)
@@ -74,12 +71,9 @@ task = _django_huey.task
 periodic_task = _django_huey.periodic_task
 
 
-
-
-
-
 def close_db(fn):
     """Decorator to be used with tasks that may operate on the database."""
+
     @wraps(fn)
     def inner(*args, **kwargs):
         try:
@@ -87,16 +81,19 @@ def close_db(fn):
         finally:
             if not HUEY.always_eager:
                 connection.close()
+
     return inner
 
 
 def db_task(*args, **kwargs):
     def decorator(fn):
         return task(*args, **kwargs)(close_db(fn))
+
     return decorator
 
 
 def db_periodic_task(*args, **kwargs):
     def decorator(fn):
         return periodic_task(*args, **kwargs)(close_db(fn))
+
     return decorator

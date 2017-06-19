@@ -17,7 +17,7 @@ class SingleConfReaderTest(TestCase):
                 'worker_type': 'process',  # "thread" or "greenlet" are other options
             },
         }
-        huey = SingleConfReader(config).huey
+        huey = SingleConfReader.by_legacy(config).huey
         self.assertIsInstance(huey, RedisHuey)
         self.assertTrue('myapp' in huey.storage.queue_key)
         self.assertEqual(huey.storage.connection_params['host'], 'localhost')
@@ -32,7 +32,7 @@ class SingleConfReaderTest(TestCase):
                 'worker_type': 'process',  # "thread" or "greenlet" are other options
             },
         }
-        consumer_config = SingleConfReader(config).consumer_options
+        consumer_config = SingleConfReader.by_legacy(config).consumer_options
         self.assertEqual(consumer_config['workers'], 4)
         self.assertEqual(consumer_config['worker_type'], 'process')
 
@@ -46,33 +46,48 @@ class SingleConfReaderTest(TestCase):
                 'worker_type': 'process',  # "thread" or "greenlet" are other options
             },
         }
-        reader = SingleConfReader(config)
+        reader = SingleConfReader.by_legacy(config)
         consumer = reader.consumer
         self.assertIsInstance(consumer, Consumer)
         self.assertEqual(consumer.huey, reader.huey)
         self.assertEqual(consumer.workers, 4)
 
+    def test_modern_conf_factory(self):
+        config = {
+            'connection': {'host': 'localhost', 'port': 6378},
+            'consumer': {
+                'workers': 4,
+                'worker_type': 'process',  # "thread" or "greenlet" are other options
+            },
+        }
+        huey = SingleConfReader.by_modern('myapp', config).huey
+        self.assertIsInstance(huey, RedisHuey)
+        self.assertTrue('myapp' in huey.storage.queue_key)
+        self.assertEqual(huey.storage.connection_params['host'], 'localhost')
+        self.assertEqual(huey.storage.connection_params['port'], 6378)
+
 
 class MultiConfReaderTest(TestCase):
-    config = {
-        'my-app': {
-            'backend': 'huey.backends.redis_backend',
-            'connection': {'host': 'localhost', 'port': 6378},
-                'consumer': {
-                    'workers': 4,
-                    'worker_type': 'process',
-            }
-        },
-        'my-app2': {
-            'default': True,
-            'backend': 'huey.backends.sqlite_backend',
-            'connection': {'location': 'sqlite filename'},
-                'consumer': {
-                    'workers': 4,
-                    'worker_type': 'process',
-            }
-        },
-    }
+    def setUp(self):
+        self.config = {
+            'my-app': {
+                'backend': 'huey.backends.redis_backend',
+                'connection': {'host': 'localhost', 'port': 6378},
+                    'consumer': {
+                        'workers': 4,
+                        'worker_type': 'process',
+                }
+            },
+            'my-app2': {
+                'default': True,
+                'backend': 'huey.backends.sqlite_backend',
+                'connection': {'location': 'sqlite filename'},
+                    'consumer': {
+                        'workers': 4,
+                        'worker_type': 'process',
+                }
+            },
+        }
 
     def test_configurations_splitting(self):
         reader = MultiConfReader(self.config)
