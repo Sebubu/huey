@@ -22,5 +22,5 @@ INSTALLED_APPS = [
 
 HUEY = {
     'name': 'test',
-    'always_eager': True,
+    'always_eager': DEBUG,
 }
