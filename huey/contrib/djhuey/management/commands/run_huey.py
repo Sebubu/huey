@@ -74,5 +74,6 @@ class Command(BaseCommand):
         config = ConsumerConfig(**consumer_options)
         config.validate()
         config.setup_logger()
+        print('Run huey on ' + str(HUEY.name))
         consumer = Consumer(HUEY, **config.values)
         consumer.run()
