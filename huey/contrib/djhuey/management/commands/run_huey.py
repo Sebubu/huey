@@ -60,7 +60,7 @@ class Command(BaseCommand):
             from huey.contrib.djhuey import HUEY
 
         consumer_options = {}
-        if isinstance(settings.HUEY, dict):
+        if hasattr(settings, 'HUEY') and isinstance(settings.HUEY, dict):
             consumer_options.update(settings.HUEY.get('consumer', {}))
 
         for key, value in options.items():
