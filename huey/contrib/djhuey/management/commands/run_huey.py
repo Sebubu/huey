@@ -51,8 +51,6 @@ class Command(BaseCommand):
                 imp.load_module(import_path, fp, path, description)
 
     def handle(self, *args, **options):
-        print(options)
-
         if 'queue' in options:
             from huey.contrib.djhuey import hueys
             queue = options['queue']
