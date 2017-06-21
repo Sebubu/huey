@@ -34,5 +34,6 @@ if __name__ == '__main__':
     if not _requirements_installed():
         print('Requirements are not installed. Run "pip install -r test_requirements.txt" to install all dependencies.')
         sys.exit(2)
+    run_tests(*sys.argv[1:])
     run_django_tests(*sys.argv[1:])
     sys.exit(0)
