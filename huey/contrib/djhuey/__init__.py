@@ -61,7 +61,7 @@ HUEY = RedisHuey('my-app')
 """
 
 _huey_settings = getattr(settings, 'HUEY', None)
-
+print(_huey_settings)
 _django_huey = HueySettingsReader(_huey_settings)
 _django_huey.start()
 
