@@ -1,5 +1,6 @@
 import imp
 
+import logging
 from django.apps import apps as django_apps
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -51,10 +52,12 @@ class Command(BaseCommand):
                 imp.load_module(import_path, fp, path, description)
 
     def handle(self, *args, **options):
+        logging.info('runing huey')
         print('run_huey asdf')
         queue_defined = 'queue' in options and options['queue'] is not None
         if queue_defined:
             print('use', options['queue'])
+            logging.info('use ' + options['queue'])
             from huey.contrib.djhuey import hueys
             queue = options['queue']
             HUEY = hueys[queue]
