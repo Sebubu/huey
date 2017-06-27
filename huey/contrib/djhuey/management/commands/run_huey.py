@@ -52,12 +52,8 @@ class Command(BaseCommand):
                 imp.load_module(import_path, fp, path, description)
 
     def handle(self, *args, **options):
-        logging.info('runing huey')
-        print('run_huey asdf')
         queue_defined = 'queue' in options and options['queue'] is not None
         if queue_defined:
-            print('use', options['queue'])
-            logging.info('use ' + options['queue'])
             from huey.contrib.djhuey import hueys
             queue = options['queue']
             HUEY = hueys[queue]
@@ -80,5 +76,6 @@ class Command(BaseCommand):
         config.validate()
         config.setup_logger()
         print('Run huey on ' + str(HUEY.name))
+        logging.info('Running huey on ' + str(HUEY.name))
         consumer = Consumer(HUEY, **config.values)
         consumer.run()
