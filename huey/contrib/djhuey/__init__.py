@@ -66,6 +66,10 @@ _django_huey.start()
 
 HUEY = _django_huey.huey
 hueys = _django_huey.hueys
+
+consumer = _django_huey.consumer
+consumers = _django_huey.consumers
+
 task = _django_huey.task
 periodic_task = _django_huey.periodic_task
 

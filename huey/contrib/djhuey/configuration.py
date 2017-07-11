@@ -85,6 +85,8 @@ class HueySettingsReader:
         self.huey_settings = huey_settings
         self.hueys = {}
         self.huey = None
+        self.consumers = {}
+        self.consumer = None
 
     def task(self, name=None, *args, **kwargs):
         if name is None:
@@ -123,13 +125,16 @@ class HueySettingsReader:
         single_reader = SingleConfReader.by_legacy(self.huey_settings)
         self.huey = single_reader.huey
         self.hueys = {single_reader.name: self.huey}
+        self.consumers = {single_reader.name: self.consumer}
 
     def _multi_config(self):
         multi_reader = MultiConfReader(self.huey_settings)
 
         self.huey = multi_reader.default_configuration.huey
+        self.consumer = multi_reader.default_configuration.consumer
         for single_reader in multi_reader.configurations:
             self.hueys[single_reader.name] = single_reader.huey
+            self.consumers[single_reader.name] = single_reader.consumer
 
     def start(self):
         if self.huey_settings is None:
