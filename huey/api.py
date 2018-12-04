@@ -82,6 +82,8 @@ class Huey(object):
         self.storage = self.get_storage(**storage_kwargs)
         self.pre_execute_hooks = OrderedDict()
         self.post_execute_hooks = OrderedDict()
+        self.startup_hooks = OrderedDict()
+        self._locks = set()
         if global_registry:
             self.registry = registry
         else:
@@ -119,7 +121,7 @@ class Huey(object):
             """
             return TaskWrapper(
                 self,
-                func,
+                func.func if isinstance(func, TaskWrapper) else func,
                 retries=retries,
                 retry_delay=retry_delay,
                 retries_as_argument=retries_as_argument,
@@ -143,7 +145,7 @@ class Huey(object):
 
             return TaskWrapper(
                 self,
-                func,
+                func.func if isinstance(func, TaskWrapper) else func,
                 name=name,
                 task_base=PeriodicQueueTask,
                 default_retries=retries,
@@ -213,6 +215,40 @@ class Huey(object):
             return fn
         return decorator
 
+    def register_startup(self, name, fn):
+        """
+        Register a startup hook. The callback will be executed whenever a
+        worker comes online. Uncaught exceptions will be logged but will
+        have no other effect on the overall operation of the worker.
+
+        The callback function must not accept any parameters.
+
+        This API is provided to simplify setting up global resources that, for
+        whatever reason, should not be created as import-time side-effects. For
+        example, your tasks need to write data into a Postgres database. If you
+        create the connection at import-time, before the worker processes are
+        spawned, you'll likely run into errors when attempting to use the
+        connection from the child (worker) processes. To avoid this problem,
+        you can register a startup hook which is executed by the worker process
+        as part of its initialization.
+
+        :param name: Name for the hook.
+        :param fn: Callback function.
+        """
+        self.startup_hooks[name] = fn
+
+    def unregister_startup(self, name):
+        del self.startup_hooks[name]
+
+    def on_startup(self, name=None):
+        """
+        Decorator for registering a startup hook.
+        """
+        def decorator(fn):
+            self.register_startup(name or fn.__name__, fn)
+            return fn
+        return decorator
+
     def _wrapped_operation(exc_class):
         def decorator(fn):
             def inner(*args, **kwargs):
@@ -276,15 +312,42 @@ class Huey(object):
             # critical component.
             pass
 
-    def enqueue(self, task, is_callback=False):
+    def _execute_always_eager(self, task):
+        accum = []
+        failure_exc = None
+        while task is not None:
+            for name, callback in self.pre_execute_hooks.items():
+                callback(task)
+            try:
+                result = task.execute()
+            except Exception as exc:
+                result = None
+                failure_exc = task_exc = exc
+            else:
+                task_exc = None
+            accum.append(result)
+            for name, callback in self.post_execute_hooks.items():
+                callback(task, result, task_exc)
+            if task.on_complete:
+                task = task.on_complete
+                task.extend_data(result)
+            else:
+                task = None
+
+        if failure_exc is not None:
+            raise failure_exc
+
+        return accum[0] if len(accum) == 1 else accum
+
+    def enqueue(self, task):
         if self.always_eager:
-            return task.execute()
+            return self._execute_always_eager(task)
 
         self._enqueue(self.registry.get_message_for_task(task))
         if not self.result_store:
             return
 
-        if task.on_complete and not is_callback:
+        if task.on_complete:
             q = [task]
             result_wrappers = []
             while q:
@@ -534,6 +597,18 @@ class Huey(object):
         """
         return TaskLock(self, lock_name)
 
+    def flush_locks(self):
+        """
+        Flush any stale locks (for example, when restarting the consumer).
+
+        :return: List of any stale locks that were cleared.
+        """
+        flushed = set()
+        for lock_key in self._locks:
+            if self._get_data(lock_key) is not EmptyData:
+                flushed.add(lock_key.split('.lock.', 1)[-1])
+        return flushed
+
     def result(self, task_id, blocking=False, timeout=None, backoff=1.15,
                max_delay=1.0, revoke_on_timeout=False, preserve=False):
         """
@@ -541,17 +616,14 @@ class Huey(object):
         method accepts the same parameters and has the same behavior
         as the :py:class:`TaskResultWrapper` object.
         """
-        if not blocking:
-            return self.get(task_id, peek=preserve)
-        else:
-            task_result = TaskResultWrapper(self, QueueTask(task_id=task_id))
-            return task_result.get(
-                blocking=blocking,
-                timeout=timeout,
-                backoff=backoff,
-                max_delay=max_delay,
-                revoke_on_timeout=revoke_on_timeout,
-                preserve=preserve)
+        task_result = TaskResultWrapper(self, QueueTask(task_id=task_id))
+        return task_result.get(
+            blocking=blocking,
+            timeout=timeout,
+            backoff=backoff,
+            max_delay=max_delay,
+            revoke_on_timeout=revoke_on_timeout,
+            preserve=preserve)
 
 
 class TaskWrapper(object):
@@ -616,6 +688,7 @@ class TaskLock(object):
         self._huey = huey
         self._name = name
         self._key = '%s.lock.%s' % (self._huey.name, self._name)
+        self._huey._locks.add(self._key)
 
     def __call__(self, fn):
         @wraps(fn)
@@ -650,10 +723,10 @@ class TaskResultWrapper(object):
         print result()  # Prints 3
 
         # If you want to block until the result is ready, you can pass
-        # block=True. We'll also specify a 4 second timeout so we don't
+        # blocking=True. We'll also specify a 4 second timeout so we don't
         # block forever if the consumer goes down:
         result2 = my_task(2, 3)
-        print result(block=True, timeout=4)
+        print result(blocking=True, timeout=4)
     """
     def __init__(self, huey, task):
         self.huey = huey
@@ -731,6 +804,9 @@ class TaskResultWrapper(object):
             retry_delay=self.task.retry_delay,
             task_id=None)
         return self.huey.enqueue(cmd)
+
+    def reset(self):
+        self._result = EmptyData
 
 
 def with_metaclass(meta, base=object):

@@ -1,12 +1,13 @@
 import datetime
-import pickle
 
 from huey import crontab
 from huey import exceptions as huey_exceptions
 from huey import RedisHuey
 from huey.api import Huey
 from huey.api import QueueTask
+from huey.api import TaskWrapper
 from huey.constants import EmptyData
+from huey.exceptions import TaskException
 from huey.registry import registry
 from huey.storage import RedisStorage
 from huey.tests.base import b
@@ -190,7 +191,7 @@ class TestHueyQueueAPIs(BaseQueueTestCase):
         self.assertEqual(len(errors), 1)
         error = errors[0]
 
-        self.assertEqual(error['error'], 'TestException(\'nuggie\',)')
+        self.assertTrue(error['error'].startswith('TestException(\'nuggie\''))
         self.assertEqual(error['id'], task.task_id)
 
         for i in range(9):
@@ -521,6 +522,24 @@ class TestHueyQueueAPIs(BaseQueueTestCase):
         huey_results.execute(huey_results.dequeue())
         self.assertEqual(huey_results.result(tid2), 0)
 
+    def test_huey_result_error_propagation(self):
+        # Execute a task that raises a TestException error.
+        res = throw_error_task_res()
+        task = huey_results.dequeue()
+        self.assertRaises(TestException, huey_results.execute, task)
+
+        # Verify TaskException raised when resolving TaskResultWrapper.
+        self.assertRaises(TaskException, res.get)
+
+        # Execute task again to verify the huey.result() API behavior.
+        res = throw_error_task_res()
+        tid = res.task.task_id
+        task = huey_results.dequeue()
+        self.assertRaises(TestException, huey_results.execute, task)
+
+        # Verify error raised when calling .result() with task ID.
+        self.assertRaises(TaskException, huey.result, tid)
+
     def test_result_preserve(self):
         res = add_values(1, 2)
         tid = res.task.task_id
@@ -617,3 +636,52 @@ class TestHueyQueueAPIs(BaseQueueTestCase):
         self.assertTrue(huey_results.ready_to_run(task1, curr70))
         self.assertFalse(huey_results.ready_to_run(task2, curr70))
         self.assertTrue(huey_results.ready_to_run(task3, curr70))
+
+    def test_task_decorators(self):
+        huey = RedisHuey()
+
+        def test_fn():
+            pass
+
+        test_fn_task = huey.task()(test_fn)
+        test_fn_cron = huey.periodic_task(crontab(minute='0'))(test_fn)
+
+        self.assertTrue(isinstance(test_fn_task, TaskWrapper))
+        self.assertTrue(test_fn_task.func is test_fn)
+        self.assertTrue(isinstance(test_fn_cron, TaskWrapper))
+        self.assertTrue(test_fn_cron.func is test_fn)
+
+        test_cron_task = huey.periodic_task(crontab(minute='0'))(test_fn_task)
+        self.assertTrue(isinstance(test_cron_task, TaskWrapper))
+        self.assertTrue(test_cron_task.func is test_fn)
+
+    def test_flush_locks(self):
+        with huey.lock_task('lock1'):
+            with huey.lock_task('lock2'):
+                flushed = huey.flush_locks()
+
+        self.assertEqual(flushed, set(['lock1', 'lock2']))
+        self.assertEqual(huey.flush_locks(), set())
+
+
+eager_huey = RedisHuey(blocking=False, always_eager=True)
+
+@eager_huey.task()
+def add(a, b):
+    return a + b
+
+
+class TestAlwaysEager(BaseQueueTestCase):
+    def test_always_eager(self):
+        self.assertEqual(add(1, 3), 4)
+
+        # Test pipelining.
+        pipe = add.s(1, 2).then(add, 3).then(add, 4).then(add, 5)
+        result = eager_huey.enqueue(pipe)
+        self.assertEqual(result, [3, 6, 10, 15])
+
+    def test_always_eager_failure(self):
+        self.assertRaises(TypeError, add, 1, None)
+
+        pipe = add.s(1, 2).then(add, None).then(add, 4)
+        self.assertRaises(TypeError, eager_huey.enqueue, pipe)

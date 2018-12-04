@@ -1,10 +1,103 @@
 Changelog
 =========
 
-v1.7.1 (unreleased)
+master
+------
+
+[View commits](https://github.com/coleifer/huey/compare/1.10.4...HEAD)
+
+v1.10.4
 -------------------
 
-[View commits](https://github.com/coleifer/huey/compare/1.7.0...HEAD)
+[View commits](https://github.com/coleifer/huey/compare/1.10.3...1.10.4)
+
+* Log time taken to execute tasks at default log level.
+* Fix missing import in SQLite storage backend.
+* Small refactoring in Redis storage backend to make it easier to override the
+  driver / client implementation.
+* Fix failing tests for simpledb storage backend.
+
+v1.10.3
+-------------------
+
+[View commits](https://github.com/coleifer/huey/compare/1.10.2...1.10.3)
+
+* Fixed regression where in *always eager* mode exceptions within tasks were
+  being swallowed instead of raised.
+* Added an API for registering hooks to run when each worker process starts-up.
+  This simplifies creating global/process-wide shared resources, such as a
+  connection pool or database client. [Documentation](https://huey.readthedocs.io/en/latest/api.html#Huey.on_startup).
+
+v1.10.2
+-------------------
+
+[View commits](https://github.com/coleifer/huey/compare/1.10.1...1.10.2)
+
+* More granular "extras" installation options.
+
+v1.10.1
+-------------------
+
+[View commits](https://github.com/coleifer/huey/compare/1.10.0...1.10.1)
+
+* Remove call to SimpleDB Client.connect(), as the `simpledb` APIs have
+  changed and no longer use this method.
+* Ensure that pre- and post-execute hooks are run when using Huey in
+  "always_eager" mode.
+* Gracefully stop Huey consumer when SIGINT is received.
+* Improved continuous integration, now testing on Python 3.7 as well.
+
+v1.10.0
+-------------------
+
+[View commits](https://github.com/coleifer/huey/compare/1.9.1...1.10.0)
+
+* Ensure that the default SIGINT handler is registered. This fixes an edge-case
+  that arises when the consumer is run without job control, which causes
+  interrupt signals to be ignored.
+* Restarts (SIGHUP) are now graceful by default.
+
+v1.9.1
+------
+
+[View commits](https://github.com/coleifer/huey/compare/1.9.0...1.9.1)
+
+* Ensure the scheduler loop does not drift (fixes #304).
+* Add `TaskResultWrapper.reset()` to enable resetting the results of tasks that
+  failed and are subsequently being retried.
+* Allow task-decorated functions to be also decorated as periodic tasks.
+
+v1.9.0
+------
+
+[View commits](https://github.com/coleifer/huey/compare/1.8.0...1.9.0)
+
+#### ROLLBACK of 1.8.0 Django Changes
+
+Due to problems with the django patch that added support for multiple huey
+instances, I've decided to rollback those changes.
+
+Django integration in Huey 1.9.0 will work the same as it had previously in
+1.7.x and earlier.
+
+Apologies, I should have reviewed the patch more thoroughly and insisted on
+better test coverage.
+
+v1.8.0
+------
+
+[View commits](https://github.com/coleifer/huey/compare/1.7.0...1.8.0)
+
+#### Backwards-incompatible change to Django integration
+
+**NOTE: These changes were remove in 1.9.0**
+
+In 1.8.0, support for multiple huey instances was added (with thanks to @Sebubu
+and @MarcoGlauser for the patches). Although existing Django/Huey apps should
+continue to work, there is a new configuration format available and I'd
+recommend that you take a look at the docs and switch over to it:
+
+[Django integration documentation](http://huey.readthedocs.io/en/latest/contrib.html#django)
 
 v1.7.0
 ------
